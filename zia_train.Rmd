@@ -1,0 +1,165 @@
+---
+title: "Intuit X Alicia Ge"
+output:
+  html_document: default
+  html_notebook: default
+  pdf_document: default
+---
+
+### Now let see what are the factors that effect people's decision on paying for tax!
+
+Read both train data and test data in.
+
+```{r}
+setwd("/Users/G_bgyl/Documents/Umich/Intern_Job/2018\ Summer\ Internship/Intuit\ Data\ Challenge/intuit_code")
+train_zia = read.csv("train_zia.csv")
+test_zia = read.csv("test_zia.csv")
+cols <- c(7:18,24:86)
+
+train_zia_clean = train_zia[,cols] 
+```
+
+### Let's create our first model!
+I used num_paid_preparer_returns as the value we want to predict.
+
+This number is important because it represent on what level people are willing to pay for tax return.
+
+In this first block,, I modeled a full model, take every numeric cloumns into account.
+
+I comment out most of the code, because this is really a draft model and should not work at all. This is a baseline of modeling, by this way I can get a rough idea of each column.
+
+I keep the code just want to show what I did.
+```{r}
+
+#train_irs_clean$agi_stub <- factor(train_irs_clean$agi_stub)
+
+m1 = lm(num_paid_preparer_returns~.,data = train_zia_clean)
+
+## plot the model:
+#par(mfrow=c(2,2))
+#plot(m1)
+#summary(m1)
+
+## check outlier
+#ti <- rstudent(m1)
+#max(abs(ti))
+#ti[which.max(abs(ti))]
+
+## cook distance
+#library(faraway)
+#cook <- cooks.distance(m6)
+#halfnorm(cook, nlab = 3, ylab="Cooks distance")
+
+## compare the loss of the model between train data and test data:
+#train_MSE = mean(m1$residuals^2)
+#test_MSE = mean((test_zia$num_paid_preparer_returns - predict.lm(m1, test_zia)) ^ 2)
+#train_MSE
+#test_MSE
+```
+
+### Adjust model
+For the predictors, I cut out most of the predictors that do not have a significant affect on the model(P value is large).
+Since column agi_stub is a category of adjusted gross income , I turned it into a factor.
+
+I both plot and summary the model, to better evalute the model.
+The left two residual plot shows that there is a problem of Heteroscedasticity, means the variance become bigger as the X goes up.
+The QQ plot shows the problem of normality.
+The last graph shows that there are several leverage points.
+I further checked lerverage point and influencial point to help improving latter.
+
+Most of the predictor have a satisfied P-value.
+The Ajusted R square is 0.9376, pretty high, which means a strong model. But it could also means overfitting.
+The big gap between train MSE and Test MSE shows that this model is indeed overfitting.
+
+
+```{r}
+train_zia_clean$agi_stub <- factor(train_zia_clean$agi_stub)
+
+m2 = lm(num_paid_preparer_returns~
+          train_zia_clean$agi_stub + train_zia_clean$num_returns + train_zia_clean$num_single_returns + train_zia_clean$num_joint_returns + train_zia_clean$num_head_of_household_returns + train_zia_clean$num_exemptions + train_zia_clean$num_dependents + log(train_zia_clean$amount_agi) +train_zia_clean$amount_refunds +
+          train_zia_clean$Total..Estimate..AGE...60.to.64.years + train_zia_clean$Male..Estimate..Total.population + train_zia_clean$Total..Estimate..Total.population+ train_zia_clean$Total..Estimate..SUMMARY.INDICATORS...Old.age.dependency.ratio ,data = train_zia_clean)
+
+par(mfrow=c(2,2))
+plot(m2)
+summary(m2)
+
+# find outlier
+ti <- rstudent(m2)
+max(abs(ti))
+ti[which.max(abs(ti))]
+
+library(faraway)
+#find leverage
+par(mfrow=c(1,1))
+halfnorm(hatvalues(m2), nlab = 6, ylab="Leverages")
+#cook distance
+cook <- cooks.distance(m2)
+par(mfrow=c(1,1))
+halfnorm(cook, nlab = 6, ylab="Cooks distance")
+
+# compare the loss of the model between train data and test data
+train_MSE_2 = mean(m2$residuals^2)
+test_MSE_2 = mean((test_zia$num_paid_preparer_returns - predict.lm(m2, test_zia)) ^ 2)
+train_MSE_2
+test_MSE_2
+
+
+```
+
+### Trade off: balance between a good fit and a good prediction
+
+To further improve the second model, I tried two ways:
+1. To solve the problem of model fitting, I log the dependent variable(y). 
+2. I also drop several predictors and transform some others.
+These features are shown in model 4.
+
+However, as model 4 becomes a good fit of training model, its power of prediction remains bad.
+
+In this way, I compromise between a good fit and a good prediction, choose model 3 as the final solution.
+It didn't use log(y) to help solve the Heteroscedasticity and normality problem, but it has a good prediction.
+
+
+
+```{r}
+# drop leverage point and influence point
+tzc_drop_ol <- train_zia_clean[-c(15076, 42019, 50898,25012,58916,
+                                  55428, 30559, 31496,71280,65704,76421), ]
+
+#keep agi_stub as a factor
+tzc_drop_ol$agi_stub <- factor(tzc_drop_ol$agi_stub)
+test_zia$agi_stub <- factor(test_zia$agi_stub)
+
+m3 = lm( num_paid_preparer_returns ~
+          agi_stub + num_returns + num_single_returns + num_joint_returns + num_head_of_household_returns + num_exemptions + log(num_dependents) + log(amount_agi) +amount_refunds + Total..Estimate..AGE...60.to.64.years + Male..Estimate..Total.population + Total..Estimate..SUMMARY.INDICATORS...Old.age.dependency.ratio ,data = tzc_drop_ol)
+
+
+par(mfrow=c(2,2))
+plot(m3)
+summary(m3)
+
+m4 = lm( log(num_paid_preparer_returns) ~
+          agi_stub + num_returns + num_single_returns + num_joint_returns + num_head_of_household_returns + num_exemptions + log(num_dependents) + log(amount_agi) +amount_refunds + Total..Estimate..AGE...60.to.64.years + Male..Estimate..Total.population + Total..Estimate..SUMMARY.INDICATORS...Old.age.dependency.ratio ,data = tzc_drop_ol)
+
+par(mfrow=c(2,2))
+plot(m4)
+summary(m4)
+
+
+# compare the loss of the model between train data and test data
+train_MSE_3 = mean(m3$residuals^2)
+test_MSE_3 = mean((test_zia$num_paid_preparer_returns - predict.lm(m3, test_zia)) ^ 2)
+
+train_MSE_3
+test_MSE_3
+
+# compare the loss of the model between train data and test data
+train_MSE_4 = mean(m4$residuals^2)
+test_MSE_4 = mean((test_zia$num_paid_preparer_returns - predict.lm(m4, test_zia)) ^ 2)
+
+train_MSE_4
+test_MSE_4
+
+```
+
+
+
