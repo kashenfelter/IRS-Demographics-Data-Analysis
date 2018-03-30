@@ -23,4 +23,4 @@ However, this didn't satisfy me because is it too exausted and fragmented to plo
 At first, I tried to built up model with data grouped by states. But when I found that CA, TX, NY, are influencial points of the model, I realise grouped data is not going to work. I can not build up a useful model without these three important states! And I simply switch to ungrouped data.
 
 ## 4. Conclusion and future
-I found column Old.age.dependency.ratio is interesting. it suggests that as the older people become more, it is more likely to spend money on this. Our survice that need user to pay should focus more on older people and places that 
+I found column Old.age.dependency.ratio is interesting. it suggests that as the older people become more, it is more likely to spend money on this. Our survice that need user to pay should focus more on older people and places that have more older people!
